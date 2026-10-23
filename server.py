@@ -44,6 +44,13 @@ def load_api_key():
 
 
 API_KEY = load_api_key()
+# The address players use. Render sets RENDER_EXTERNAL_URL itself. It is sent as the
+# Referer on server-side Google calls, so a key limited to this website still works.
+PUBLIC_URL = (os.environ.get("PUBLIC_URL") or os.environ.get("RENDER_EXTERNAL_URL") or "").rstrip("/")
+
+
+class KeyProblem(Exception):
+    """Google refused the API key: retrying with other places won't help."""
 MODE = "streetview" if API_KEY else "photos"
 
 
@@ -65,8 +72,8 @@ def score_for(km):
     return round(5000 * math.exp(-km / 1492.7))
 
 
-def http_json(url):
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+def http_json(url, headers=None):
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, **(headers or {})})
     with urllib.request.urlopen(req, timeout=15) as resp:
         return json.load(resp)
 
@@ -84,7 +91,10 @@ def find_streetview(anchor):
     q = urllib.parse.urlencode({
         "location": f"{point['lat']},{point['lng']}",
         "radius": 25000, "source": "outdoor", "key": API_KEY})
-    data = http_json("https://maps.googleapis.com/maps/api/streetview/metadata?" + q)
+    headers = {"Referer": PUBLIC_URL + "/"} if PUBLIC_URL else None
+    data = http_json("https://maps.googleapis.com/maps/api/streetview/metadata?" + q, headers)
+    if data.get("status") == "REQUEST_DENIED":
+        raise KeyProblem(data.get("error_message") or "Google refused the API key.")
     if data.get("status") != "OK":
         return None
     loc = data["location"]
@@ -171,6 +181,8 @@ def make_location(used):
         anchor = random.choice(pool)
         try:
             loc = finder(anchor)
+        except KeyProblem:
+            raise
         except Exception as exc:  # network hiccup: try another place
             print("  location lookup failed:", exc)
             loc = None
@@ -255,7 +267,14 @@ class Game:
     def generate(self, match_id, count):
         used = set()
         for _ in range(count):
-            loc = make_location(used)
+            try:
+                loc = make_location(used)
+            except KeyProblem as exc:
+                with self.lock:
+                    if self.match_id == match_id:
+                        self.error = f"Google Street View refused the API key: {exc}"
+                print("  API key problem:", exc)
+                return
             with self.lock:
                 if self.match_id != match_id:
                     return  # match was reset while we were looking
