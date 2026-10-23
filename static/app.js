@@ -96,7 +96,9 @@ async function poll() {
   if (polling) return;
   polling = true;
   try {
-    const res = await fetch(`/api/state?code=${encodeURIComponent(code)}&pid=${encodeURIComponent(pid)}`, { cache: "no-store" });
+    // Give up on a stuck request after 10 s so the next poll can try again.
+    const res = await fetch(`/api/state?code=${encodeURIComponent(code)}&pid=${encodeURIComponent(pid)}`,
+      { cache: "no-store", signal: AbortSignal.timeout(10000) });
     const data = await res.json();
     if (data.gone) return leaveToJoin("That game has ended. Start a new one or join another code.");
     apply(data);
