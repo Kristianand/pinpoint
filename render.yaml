@@ -1,0 +1,14 @@
+# One-click hosting on Render (render.com). Free plan: the server sleeps after
+# 15 idle minutes and takes about a minute to wake on the first visit.
+services:
+  - type: web
+    name: pinpoint
+    runtime: python
+    plan: free
+    buildCommand: echo "No build step needed"
+    startCommand: python server.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false

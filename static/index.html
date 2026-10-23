@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pinpoint</title>
+<meta name="theme-color" content="#0e1b28">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pinpoint">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Figtree:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<!-- JOIN -->
+<section id="screen-join" class="screen center-screen" hidden>
+  <div class="join-card">
+    <p class="eyebrow">Party geography game · 2–10 players</p>
+    <h1 class="logo">Pin<span>point</span></h1>
+    <p class="lede">Drop into a random spot on Earth. Look around, read the signs, then pin where you think you are. Closest guess scores up to 5,000 points.</p>
+    <form id="join-form" class="join-form">
+      <label for="name-input">Your name</label>
+      <input id="name-input" maxlength="20" autocomplete="nickname" placeholder="e.g. Ingrid">
+      <div class="join-choices">
+        <div class="choice">
+          <p class="label">Got a code from a friend?</p>
+          <div class="row">
+            <input id="code-input" class="code-input" maxlength="4" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="ABCD" aria-label="Game code">
+            <button type="submit" class="btn btn-primary">Join</button>
+          </div>
+        </div>
+        <div class="choice">
+          <p class="label">Or host your own</p>
+          <button id="create-btn" type="button" class="btn btn-ghost btn-wide">Create a new game</button>
+        </div>
+      </div>
+      <p id="join-error" class="error" hidden></p>
+    </form>
+  </div>
+</section>
+
+<!-- LOBBY -->
+<section id="screen-lobby" class="screen page-screen" hidden>
+  <header class="page-head">
+    <h1 class="logo small-logo">Pin<span>point</span></h1>
+    <span id="lobby-mode" class="chip"></span>
+  </header>
+  <div class="lobby-grid">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Players</h2>
+        <span id="player-count" class="mono muted"></span>
+      </div>
+      <ul id="lobby-players" class="player-list"></ul>
+      <div class="invite">
+        <p class="label">Game code</p>
+        <p id="game-code" class="game-code mono"></p>
+        <p class="muted small">Friends open <span id="invite-url" class="mono"></span>, or open Pinpoint and type the code.</p>
+        <button id="share-btn" type="button" class="btn btn-primary">Invite friends</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>Match settings</h2><span id="host-tag" class="muted small"></span></div>
+      <div class="setting">
+        <p class="label">Rounds</p>
+        <div class="seg" id="set-rounds" role="group" aria-label="Rounds">
+          <button type="button" data-v="3">3</button><button type="button" data-v="5">5</button><button type="button" data-v="10">10</button>
+        </div>
+      </div>
+      <div class="setting">
+        <p class="label">Time per round</p>
+        <div class="seg" id="set-time" role="group" aria-label="Time per round">
+          <button type="button" data-v="30">0:30</button><button type="button" data-v="60">1:00</button><button type="button" data-v="120">2:00</button><button type="button" data-v="180">3:00</button><button type="button" data-v="0" aria-label="No time limit" title="No time limit">∞</button>
+        </div>
+      </div>
+      <div class="setting">
+        <p class="label">Movement</p>
+        <div class="seg" id="set-move" role="group" aria-label="Movement">
+          <button type="button" data-v="false">Moving allowed</button><button type="button" data-v="true">No moving</button>
+        </div>
+        <p id="move-note" class="muted small"></p>
+      </div>
+      <button id="start-btn" class="btn btn-primary btn-wide" type="button">Start match</button>
+      <p id="lobby-hint" class="muted small center"></p>
+      <p id="lobby-error" class="error center" hidden></p>
+    </div>
+  </div>
+  <button id="leave-btn" class="btn btn-ghost leave" type="button">Leave game</button>
+</section>
+
+<!-- LOADING -->
+<section id="screen-loading" class="screen center-screen" hidden>
+  <div class="loading">
+    <div class="globe" aria-hidden="true"></div>
+    <p id="loading-text" class="loading-text">Finding a place on Earth…</p>
+    <p id="loading-error" class="error" hidden></p>
+    <button id="loading-lobby-btn" class="btn btn-ghost" type="button" hidden>Back to lobby</button>
+  </div>
+</section>
+
+<!-- ROUND -->
+<section id="screen-round" class="screen round-screen" hidden>
+  <div id="viewer" class="viewer">
+    <div id="pano" class="pano"></div>
+    <div id="photos" class="photos" hidden>
+      <img id="photo-main" alt="Photo taken somewhere on Earth">
+      <button id="photo-prev" class="photo-nav prev" type="button" aria-label="Previous photo">‹</button>
+      <button id="photo-next" class="photo-nav next" type="button" aria-label="Next photo">›</button>
+      <div id="photo-thumbs" class="photo-thumbs"></div>
+    </div>
+  </div>
+  <div class="hud">
+    <div class="hud-box">
+      <span class="label">Round</span>
+      <span id="hud-round" class="mono hud-num"></span>
+    </div>
+    <div class="hud-box" id="hud-timer-box">
+      <span class="label">Time</span>
+      <span id="hud-timer" class="mono hud-num"></span>
+    </div>
+    <div class="hud-box hud-players" id="hud-players"></div>
+    <button id="return-btn" class="btn btn-ghost hud-return" type="button" hidden>Back to start</button>
+  </div>
+  <div id="guess-panel" class="guess-panel">
+    <div id="guess-map" class="guess-map"></div>
+    <div class="guess-actions">
+      <button id="map-size-btn" class="btn btn-ghost map-size" type="button" aria-label="Enlarge map">⤢</button>
+      <button id="guess-btn" class="btn btn-primary" type="button" disabled>Place a pin on the map</button>
+    </div>
+  </div>
+  <button id="open-map-btn" class="btn btn-primary open-map" type="button">Open map</button>
+  <div id="guessed-banner" class="guessed-banner" hidden></div>
+</section>
+
+<!-- REVEAL -->
+<section id="screen-reveal" class="screen reveal-screen" hidden>
+  <div id="reveal-map" class="reveal-map"></div>
+  <aside class="reveal-side">
+    <p class="eyebrow" id="reveal-round"></p>
+    <h2 id="reveal-place" class="reveal-place"></h2>
+    <ol id="reveal-list" class="result-list"></ol>
+    <div class="side-foot">
+      <button id="next-btn" class="btn btn-primary btn-wide" type="button"></button>
+      <p id="next-wait" class="muted small center"></p>
+      <details id="credits" class="credits" hidden>
+        <summary>Photo credits</summary>
+        <ul id="credit-list"></ul>
+      </details>
+    </div>
+  </aside>
+</section>
+
+<!-- FINAL -->
+<section id="screen-final" class="screen page-screen" hidden>
+  <header class="page-head">
+    <h1 class="logo small-logo">Pin<span>point</span></h1>
+    <span class="chip">Final results</span>
+  </header>
+  <div id="podium" class="podium"></div>
+  <div class="panel table-wrap">
+    <table id="final-table" class="final-table"></table>
+  </div>
+  <div class="final-actions">
+    <button id="again-btn" class="btn btn-primary" type="button">Play again</button>
+    <p id="again-wait" class="muted small"></p>
+  </div>
+</section>
+
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
