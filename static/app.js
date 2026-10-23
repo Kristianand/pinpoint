@@ -524,8 +524,15 @@ $("again-btn").addEventListener("click", () => api("lobby").catch((err) => toast
 // ------------------------------------------------------------ boot
 
 (async function boot() {
+  // Draw something right away: a sleeping server can take a while to answer.
+  if (pid && code) {
+    show("loading");
+    $("loading-text").textContent = "Reconnecting to your game…";
+  } else {
+    renderJoin();
+  }
   try {
-    config = await (await fetch("/api/config")).json();
+    config = await (await fetch("/api/config", { signal: AbortSignal.timeout(15000) })).json();
   } catch {}
   const linkCode = new URLSearchParams(location.search).get("code");
   if (linkCode) {
